@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tic-Tac-Toe </title>
+    <style>
+        :root { --bg: #000; --text: #0ff; --box: #111; --border: #0ff; --cell: #111; --win: #0f0; }
+        .light-mode { --bg: #f0f2f5; --text: #1c1e21; --box: #ffffff; --border: #007bff; --cell: #e4e6eb; --win: #28a745; }
+        
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; transition: 0.3s; }
+        
+        #auth-box, #game-container, #settings-box { 
+            background: var(--box); padding: 25px; border: 3px solid var(--border); 
+            text-align: center; border-radius: 15px; width: 340px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        input, select { display: block; margin: 10px auto; padding: 12px; background: var(--bg); border: 1px solid var(--border); color: var(--text); width: 85%; border-radius: 8px; }
+        button { background: var(--border); color: white; border: none; padding: 12px; cursor: pointer; font-weight: bold; width: 95%; margin: 5px; border-radius: 8px; transition: 0.2s; }
+        button:hover { opacity: 0.8; transform: scale(1.02); }
+        
+        .board { display: grid; grid-template-columns: repeat(3, 100px); grid-gap: 10px; margin-top: 20px; }
+        .cell { width: 100px; height: 100px; background: var(--cell); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 40px; cursor: pointer; border-radius: 10px; font-weight: bold; transition: 0.3s; }
+        .cell.winner { border-color: var(--win); box-shadow: 0 0 20px var(--win); color: var(--win) !important; }
+        
+        .ui { margin-bottom: 15px; font-size: 14px; display: flex; justify-content: space-between; width: 100%; }
+        #credit { position: fixed; bottom: 20px; right: 20px; color: var(--text); font-size: 24px; font-weight: 900; text-transform: uppercase; }
+        #settings-box { display: none; position: absolute; z-index: 10; }
+        #msg { font-size: 12px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="auth-box">
+        <h1 style="margin-top:0">TIC-TAC-TOE</h1>
+        <div id="msg">Create an account or Login</div>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="handleAuth('login')">LOGIN</button>
+        <button onclick="handleAuth('signup')" style="background: transparent; border: 1px solid var(--border); color: var(--text);">CREATE ACCOUNT</button>
+    </div>
+
+    <div id="settings-box">
+        <h2>SETTINGS</h2>
+        <label>Game Mode:</label>
+        <select id="game-mode">
+            <option value="bot">Vs Computer</option>
+            <option value="pvp">Player vs Player</option>
+        </select>
+        <label>Theme:</label>
+        <select id="theme-select" onchange="toggleTheme()">
+            <option value="dark">Dark Mode</option>
+            <option value="light">Light Mode</option>
+        </select>
+        <button onclick="closeSettings()">SAVE & BACK</button>
+    </div>
+
+    <div id="game-container" style="display:none;">
+        <div class="ui">
+            <span>USER: <b id="user-display"></b></span>
+            <button onclick="openSettings()" style="width: auto; padding: 5px 10px;">⚙ SETTINGS</button>
+        </div>
+        <h2 id="status">X's Turn</h2>
+        <div class="board" id="board">
+            <div class="cell" onclick="makeMove(0)"></div>
+            <div class="cell" onclick="makeMove(1)"></div>
+            <div class="cell" onclick="makeMove(2)"></div>
+            <div class="cell" onclick="makeMove(3)"></div>
+            <div class="cell" onclick="makeMove(4)"></div>
+            <div class="cell" onclick="makeMove(5)"></div>
+            <div class="cell" onclick="makeMove(6)"></div>
+            <div class="cell" onclick="makeMove(7)"></div>
+            <div class="cell" onclick="makeMove(8)"></div>
+        </div>
+        <p>Your Wins: <b id="win-count" style="color: gold;">0</b></p>
+        <button onclick="resetBoard()">RESTART</button>
+    </div>
+
+    <div id="credit">MADE BY LEO helped by ai [FOR DR T]</div>
+
+<script>
+    let currentUser = "";
+    let board = ["", "", "", "", "", "", "", "", ""];
+    let currentPlayer = "X";
+    let gameActive = true;
+    const winCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+    // --- Account Logic ---
+    function handleAuth(type) {
+        const u = document.getElementById("username").value.trim();
+        const p = document.getElementById("password").value.trim();
+        const msg = document.getElementById("msg");
+        if(!u || !p) { msg.innerText = "Enter username and password"; return; }
+
+        let userKey = "leo_ttt_user_" + u;
+        if(type === 'signup') {
+            if(localStorage.getItem(userKey)) { msg.innerText = "User exists already!"; }
+            else {
+                localStorage.setItem(userKey, JSON.stringify({pass: p, wins: 0}));
+                msg.innerText = "Account Created! Now Login.";
+                msg.style.color = "lime";
+            }
+        } else {
+            let data = JSON.parse(localStorage.getItem(userKey));
+            if(data && data.pass === p) {
+                currentUser = u;
+                document.getElementById("auth-box").style.display = "none";
+                document.getElementById("game-container").style.display = "block";
+                document.getElementById("user-display").innerText = u;
+                document.getElementById("win-count").innerText = data.wins;
+            } else { msg.innerText = "Wrong details!"; msg.style.color = "red"; }
+        }
+    }
+
+    // --- UI/Theme ---
+    function toggleTheme() {
+        const theme = document.getElementById("theme-select").value;
+        theme === "light" ? document.body.classList.add("light-mode") : document.body.classList.remove("light-mode");
+    }
+    function openSettings() { document.getElementById("settings-box").style.display = "block"; }
+    function closeSettings() { document.getElementById("settings-box").style.display = "none"; resetBoard(); }
+
+    // --- Gameplay ---
+    function makeMove(i) {
+        if(board[i] === "" && gameActive) {
+            board[i] = currentPlayer;
+            updateBoard();
+            if(!checkEnd()) {
+                if (document.getElementById("game-mode").value === "bot") {
+                    gameActive = false;
+                    setTimeout(aiMove, 600);
+                } else {
+                    currentPlayer = currentPlayer === "X" ? "O" : "X";
+                    document.getElementById("status").innerText = currentPlayer + "'s Turn";
+                }
+            }
+        }
+    }
+
+    function aiMove() {
+        let available = board.map((v, i) => v === "" ? i : null).filter(v => v !== null);
+        let move = available[Math.floor(Math.random() * available.length)];
+        board[move] = "O";
+        updateBoard();
+        gameActive = true;
+        checkEnd();
+    }
+
+    function checkEnd() {
+        for(let combo of winCombos) {
+            let [a,b,c] = combo;
+            if(board[a] && board[a] === board[b] && board[a] === board[c]) {
+                gameActive = false;
+                highlightWinner(combo);
+                document.getElementById("status").innerText = board[a] + " WINS!";
+                if(board[a] === "X") {
+                    let userKey = "leo_ttt_user_" + currentUser;
+                    let data = JSON.parse(localStorage.getItem(userKey));
+                    data.wins++;
+                    localStorage.setItem(userKey, JSON.stringify(data));
+                    document.getElementById("win-count").innerText = data.wins;
+                }
+                return true;
+            }
+        }
+        if(!board.includes("")) { document.getElementById("status").innerText = "DRAW!"; return true; }
+        return false;
+    }
+
+    function highlightWinner(indices) {
+        let cells = document.querySelectorAll(".cell");
+        indices.forEach(i => cells[i].classList.add("winner"));
+    }
+
+    function updateBoard() {
+        let cells = document.querySelectorAll(".cell");
+        board.forEach((val, i) => { 
+            cells[i].innerText = val; 
+            cells[i].style.color = val === "X" ? "#ff0055" : "#0ff";
+        });
+    }
+
+    function resetBoard() {
+        board = ["", "", "", "", "", "", "", "", ""];
+        gameActive = true;
+        currentPlayer = "X";
+        document.getElementById("status").innerText = "X's Turn";
+        document.querySelectorAll(".cell").forEach(c => c.classList.remove("winner"));
+        updateBoard();
+    }
+</script>
+</body>
+</html>
